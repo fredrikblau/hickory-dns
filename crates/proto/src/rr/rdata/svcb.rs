@@ -316,8 +316,7 @@ fn parse_char_data(value: &str) -> Result<String, ParseError> {
 ///   ipv6hint=... key65333=ex1 key65444=ex2 mandatory=key65444,ipv6hint
 /// ```
 ///
-/// The keys are sorted, as the wire format requires them in strictly increasing order. That
-/// each key appears in the record is checked in `SVCB::from_tokens`.
+/// The keys are sorted, as the wire format requires them in strictly increasing order.
 fn parse_mandatory(value: Option<&str>) -> Result<SvcParamValue, ParseError> {
     let value = value.ok_or_else(|| ParseError::from("expected at least one Mandatory field"))?;
 
@@ -1557,14 +1556,17 @@ mod tests {
 
     use super::*;
 
-    fn parse_svcb(txt: &str) -> Result<SVCB, ParseError> {
-        SVCB::from_tokens(txt.split_whitespace())
-    }
-
     #[test]
     fn test_mandatory_validation() {
         // https://github.com/hickory-dns/hickory-dns/issues/4089
-        let svcb = parse_svcb("1 . mandatory=ipv4hint,alpn alpn=h2 ipv4hint=192.0.2.1").unwrap();
+        let rdata = RData::try_from_str(
+            RecordType::SVCB,
+            "1 . mandatory=ipv4hint,alpn alpn=h2 ipv4hint=192.0.2.1",
+        )
+        .unwrap();
+        let RData::SVCB(svcb) = rdata else {
+            panic!("expected SVCB, got {rdata:?}");
+        };
         let mandatory = svcb
             .svc_params
             .iter()
@@ -1580,7 +1582,8 @@ mod tests {
             "1 . mandatory=mandatory,alpn alpn=h2",
             "1 . mandatory=ipv4hint alpn=h2",
         ] {
-            assert!(parse_svcb(invalid).is_err(), "{invalid} should not parse");
+            RData::try_from_str(RecordType::SVCB, invalid)
+                .expect_err(&format!("{invalid} should not parse"));
         }
     }
 
